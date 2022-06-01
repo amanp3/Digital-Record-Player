@@ -1,14 +1,18 @@
 #include "Arduino.h"
 #include "SoftwareSerial.h"
 #include "DFRobotDFPlayerMini.h"
+#include "Arduino_AVRSTL.h"
+//#include "DFPlayerMini_Fast.h"
 #include <SPI.h> 
 #include <RFID.h>
 #include <Servo.h> 
 
 
+
 //DFPLAYER
 SoftwareSerial mySoftwareSerial(3,2); // RX, TX
 DFRobotDFPlayerMini myDFPlayer;
+//DFPlayerMini_Fast myDFPlayer;
 void printDetail(uint8_t type, int value);
 
 //Timer
@@ -28,6 +32,73 @@ int pastSong = 0000;
 
 
 
+//constants that store the number of songs in each folder
+int folderNumber[] = {4,2,60};
+
+void detectButton(){
+  //play pause button
+  if (digitalRead(5) == HIGH && millis() - previousTime > 1000){
+    previousTime = millis();
+    Serial.println ("Play/Pause button pressed");
+    
+          if (myDFPlayer.readState()==1){
+            myDFPlayer.pause();
+            Serial.println("Paused");
+          }
+
+          else if (myDFPlayer.readState() == 2){
+            myDFPlayer.start();
+            Serial.println("Playing");
+          }
+          else if (myDFPlayer.readState() == 0 && pastSong != 0000){
+            myDFPlayer.play(pastSong);
+          }
+  }
+  if (digitalRead(6) == HIGH && millis() - previousTime > 1000) {
+    previousTime = millis();
+    Serial.println ("Skip Song button pressed");
+
+    myDFPlayer.next();
+    
+  }
+  if (digitalRead(7) == HIGH && millis() - previousTime > 500) {
+    previousTime = millis();
+    Serial.println ("Volume Up button pressed");
+
+    myDFPlayer.volumeUp();
+    Serial.println(myDFPlayer.readVolume());
+  }
+  if (digitalRead(8) == HIGH && millis() - previousTime > 500) {
+    previousTime = millis();
+    Serial.println ("Volume Down button pressed");
+
+    myDFPlayer.volumeDown();
+    Serial.println(myDFPlayer.readVolume());
+    
+  }
+}
+//returns random song in range of the number of tracks in the folder
+void shuffleFolder(int folder){
+  
+  int maxVal = folderNumber[folder-1];
+  int minVal = 1;
+
+  std::vector<int> vec;
+  for (int i=1; i <= maxVal; i++){
+    vec.push_back(i);
+  }
+  
+  if(vec.empty() == false && myDFPlayer.readState() == 0){
+    
+    int songNumber = random(minVal, vec.size()+1);
+
+    int songName = vec[songNumber];
+    Serial.println(songName);
+    myDFPlayer.playFolder(folder, songName);
+    vec.erase(songNumber-1);
+    Serial.println("Next Song in the folder is playing on shuffle");
+  }
+}
 
 
 void setup() {
@@ -73,6 +144,7 @@ void setup() {
 }
 
 void loop() {
+  
   String temp = "";  //variable to store the read RFID number
   //Serial.println (myDFPlayer.readState());
   if (myDFPlayer.readState() == 1){
@@ -83,23 +155,7 @@ void loop() {
   }
 
   //button stuff
-  if (digitalRead(5) == HIGH && millis() - previousTime > 1000){
-    previousTime = millis();
-    Serial.println ("Button pressed");
-    
-          if (myDFPlayer.readState()==1){
-            myDFPlayer.pause();
-            Serial.println("Paused");
-          }
-
-          else if (myDFPlayer.readState() == 2){
-            myDFPlayer.start();
-            Serial.println("Playing");
-          }
-          else if (myDFPlayer.readState() == 0 && pastSong != 0000){
-            myDFPlayer.play(pastSong);
-          }
-  }
+  detectButton();
   
   if (rfid.findCard(PICC_REQIDL, str) == MI_OK)   //Wait for a tag to be placed near the reader
   { 
@@ -123,13 +179,17 @@ void loop() {
         
         if (temp == "880401335")
         {
-          myDFPlayer.play(0001);
-          pastSong = 0001;
+         
+          //shuffleFolder(1);
+          myDFPlayer.playLargeFolder(03, 10);
+          //myDFPlayer.randomAll();
+          //pastSong = 0001;
         }
         else if(temp == "880401435")
         {
-          myDFPlayer.play(0002);
-          pastSong = 0002;
+//          myDFPlayer.play(0002);
+//          pastSong = 0002;
+            myDFPlayer.playLargeFolder(03, 1);
         }
         else if(temp == "88041513815")
         {
